@@ -126,7 +126,7 @@ func writeToCSV(fileDiffs []FileDiff, currentCommit, compareCommit string) error
 	defer writer.Flush()
 
 	// Write header
-	err = writer.Write([]string{compareCommit, "", "", currentCommit, "", ""})
+	err = writer.Write([]string{"from", compareCommit, "", "to", currentCommit, ""})
 	if err != nil {
 		return err
 	}
