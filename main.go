@@ -80,7 +80,7 @@ func getFileDetails(filePath, currentCommit, compareCommit string) (FileDiff, er
 	// get file details at compare commit
 	compareFileInfo, err := os.Stat(filePath)
 	if err != nil {
-		log.Printf("Error getting file info at compare commit: %v\n", err)
+		log.Printf("Skipping file info at compare commit: %v\n", err)
 		fileDetail.CompareFileSize = "N/A"
 		fileDetail.CompareLastModified = time.Time{}
 	}
@@ -93,18 +93,18 @@ func getFileDetails(filePath, currentCommit, compareCommit string) (FileDiff, er
 	// get file details at current commit
 	currentFileInfo, err := os.Stat(filePath)
 	if err != nil {
-		log.Printf("Error getting file info at current commit: %v\n", err)
+		log.Printf("Skipping file info at current commit: %v\n", err)
 		fileDetail.CurrentFileSize = "N/A"
 		fileDetail.CurrentLastModified = time.Time{}
 	}
 
 	// set file details
 	if compareFileInfo != nil {
-		fileDetail.CompareFileSize = fmt.Sprintf("%d", compareFileInfo.Size()/1024)
+		fileDetail.CompareFileSize = fmt.Sprintf("%.2f", float64(compareFileInfo.Size()/1024))
 		fileDetail.CompareLastModified = compareFileInfo.ModTime()
 	}
 	if currentFileInfo != nil {
-		fileDetail.CurrentFileSize = fmt.Sprintf("%d", currentFileInfo.Size()/1024)
+		fileDetail.CurrentFileSize = fmt.Sprintf("%.2f", float64(currentFileInfo.Size()/1024))
 		fileDetail.CurrentLastModified = currentFileInfo.ModTime()
 	}
 
@@ -124,7 +124,7 @@ func writeToCSV(fileDiffs []FileDiff, currentCommit, compareCommit string) error
 		compareCommit = compareCommit[:5]
 	}
 
-	file, err := os.Create(fmt.Sprintf("diff_%s_%s.csv", currentCommit, compareCommit))
+	file, err := os.Create(fmt.Sprintf("diff_%s_%s.csv", compareCommit, currentCommit))
 	if err != nil {
 		return err
 	}
