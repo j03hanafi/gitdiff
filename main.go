@@ -100,11 +100,11 @@ func getFileDetails(filePath, currentCommit, compareCommit string) (FileDiff, er
 
 	// set file details
 	if compareFileInfo != nil {
-		fileDetail.CompareFileSize = fmt.Sprintf("%.2f", float64(compareFileInfo.Size()/1024))
+		fileDetail.CompareFileSize = fmt.Sprintf("%.2f", float64(compareFileInfo.Size())/1024)
 		fileDetail.CompareLastModified = compareFileInfo.ModTime()
 	}
 	if currentFileInfo != nil {
-		fileDetail.CurrentFileSize = fmt.Sprintf("%.2f", float64(currentFileInfo.Size()/1024))
+		fileDetail.CurrentFileSize = fmt.Sprintf("%.2f", float64(currentFileInfo.Size())/1024)
 		fileDetail.CurrentLastModified = currentFileInfo.ModTime()
 	}
 
