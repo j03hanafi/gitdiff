@@ -68,35 +68,47 @@ func getChangedFiles(current, compare string) ([]string, error) {
 }
 
 func getFileDetails(filePath, currentCommit, compareCommit string) (FileDiff, error) {
+	fileDetail := FileDiff{
+		FilePath: filePath,
+	}
+
 	// checkout to compare commit
 	if err := checkoutCommit(compareCommit); err != nil {
-		return FileDiff{}, err
+		return fileDetail, err
 	}
 
 	// get file details at compare commit
 	compareFileInfo, err := os.Stat(filePath)
 	if err != nil {
-		return FileDiff{}, err
+		log.Printf("Error getting file info at compare commit: %v\n", err)
+		fileDetail.CompareFileSize = "N/A"
+		fileDetail.CompareLastModified = time.Time{}
 	}
 
 	// checkout back to current commit
 	if err := checkoutCommit(currentCommit); err != nil {
-		return FileDiff{}, err
+		return fileDetail, err
 	}
 
 	// get file details at current commit
 	currentFileInfo, err := os.Stat(filePath)
 	if err != nil {
-		return FileDiff{}, err
+		log.Printf("Error getting file info at current commit: %v\n", err)
+		fileDetail.CurrentFileSize = "N/A"
+		fileDetail.CurrentLastModified = time.Time{}
 	}
 
-	return FileDiff{
-		FilePath:            filePath,
-		CompareFileSize:     fmt.Sprintf("%.2f", float64(compareFileInfo.Size())/1024),
-		CompareLastModified: compareFileInfo.ModTime(),
-		CurrentFileSize:     fmt.Sprintf("%.2f", float64(currentFileInfo.Size())/1024),
-		CurrentLastModified: currentFileInfo.ModTime(),
-	}, nil
+	// set file details
+	if compareFileInfo != nil {
+		fileDetail.CompareFileSize = fmt.Sprintf("%d", compareFileInfo.Size()/1024)
+		fileDetail.CompareLastModified = compareFileInfo.ModTime()
+	}
+	if currentFileInfo != nil {
+		fileDetail.CurrentFileSize = fmt.Sprintf("%d", currentFileInfo.Size()/1024)
+		fileDetail.CurrentLastModified = currentFileInfo.ModTime()
+	}
+
+	return fileDetail, nil
 }
 
 func checkoutCommit(commit string) error {
