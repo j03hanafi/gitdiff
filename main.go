@@ -7,14 +7,17 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 )
 
 type FileDiff struct {
 	FilePath            string
+	CompareFileType     string
 	CompareFileSize     string
 	CompareLastModified time.Time
+	CurrentFileType     string
 	CurrentFileSize     string
 	CurrentLastModified time.Time
 }
@@ -22,7 +25,7 @@ type FileDiff struct {
 func main() {
 	// Define command line flag
 	compareCommit := flag.String("from", "", "commit hash to compare with")
-	currentCommit := flag.String("to", "", "current commit hash")
+	currentCommit := flag.String("to", "", "latest commit hash")
 	flag.Parse()
 
 	// Validate flags
@@ -102,10 +105,12 @@ func getFileDetails(filePath, currentCommit, compareCommit string) (FileDiff, er
 	if compareFileInfo != nil {
 		fileDetail.CompareFileSize = fmt.Sprintf("%.2f", float64(compareFileInfo.Size())/1024)
 		fileDetail.CompareLastModified = compareFileInfo.ModTime()
+		fileDetail.CompareFileType = filepath.Ext(filePath)
 	}
 	if currentFileInfo != nil {
 		fileDetail.CurrentFileSize = fmt.Sprintf("%.2f", float64(currentFileInfo.Size())/1024)
 		fileDetail.CurrentLastModified = currentFileInfo.ModTime()
+		fileDetail.CurrentFileType = filepath.Ext(filePath)
 	}
 
 	return fileDetail, nil
@@ -143,7 +148,7 @@ func writeToCSV(fileDiffs []FileDiff, currentCommit, compareCommit string) error
 		return err
 	}
 
-	err = writer.Write([]string{"File Name", "File Size (KB)", "Modified", "File Name", "File Size (KB)", "Modified"})
+	err = writer.Write([]string{"File Name", "File Type", "Date Modified", "File Size (KB)", "File Name", "File Type", "Date Modified", "File Size (KB)"})
 	if err != nil {
 		return err
 	}
@@ -152,11 +157,13 @@ func writeToCSV(fileDiffs []FileDiff, currentCommit, compareCommit string) error
 	for _, diff := range fileDiffs {
 		err = writer.Write([]string{
 			diff.FilePath,
-			diff.CompareFileSize,
+			diff.CompareFileType,
 			diff.CompareLastModified.Format("02/01/2006"),
+			diff.CompareFileSize,
 			diff.FilePath,
-			diff.CurrentFileSize,
+			diff.CurrentFileType,
 			diff.CurrentLastModified.Format("02/01/2006"),
+			diff.CurrentFileSize,
 		})
 		if err != nil {
 			return err
