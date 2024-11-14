@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/csv"
 	"flag"
 	"fmt"
@@ -41,14 +42,15 @@ func main() {
 	}
 
 	// Get file details
-	var fileDiffs []FileDiff
-	for _, file := range changedFiles {
-		fileDiff, err := getFileDetails(file, *currentCommit, *compareCommit)
-		if err != nil {
-			log.Printf("Error getting file details: %v\n", err)
-			continue
-		}
-		fileDiffs = append(fileDiffs, fileDiff)
+	fileDiffs := make([]FileDiff, len(changedFiles))
+
+	for i, file := range changedFiles {
+		fileDiffs[i].FilePath = file
+	}
+
+	err = getFileDetails(fileDiffs, *currentCommit, *compareCommit)
+	if err != nil {
+		log.Fatalf("Error getting file details")
 	}
 
 	// Write to csv
@@ -72,59 +74,83 @@ func getChangedFiles(current, compare string) ([]string, error) {
 	return files, nil
 }
 
-func getFileDetails(filePath, currentCommit, compareCommit string) (FileDiff, error) {
-	fileDetail := FileDiff{
-		FilePath: filePath,
+func getFileDetails(fileDiffs []FileDiff, currentCommit, compareCommit string) error {
+	// Get commit dates
+	currentCommitDate, err := getCommitDate(currentCommit)
+	if err != nil {
+		return err
+	}
+	compareCommitDate, err := getCommitDate(compareCommit)
+	if err != nil {
+		return err
 	}
 
-	// checkout back to current commit
+	// Checkout to the current commit once
 	if err := checkoutCommit(currentCommit); err != nil {
-		return fileDetail, err
+		return err
 	}
 
-	// get file details at current commit
-	currentFileInfo, err := os.Stat(filePath)
-	if err != nil {
-		log.Printf("Skipping file info at current commit: %v\n", err)
-		fileDetail.CurrentFileSize = "-"
-		fileDetail.CurrentLastModified = time.Time{}
+	// Loop over fileDiffs to get file info at the current commit
+	for i := range fileDiffs {
+		filePath := fileDiffs[i].FilePath
+
+		currentFileInfo, err := os.Stat(filePath)
+		if err != nil {
+			log.Printf("Skipping file info at current commit for %s: %v\n", filePath, err)
+			fileDiffs[i].CurrentFileSize = "-"
+			fileDiffs[i].CurrentFileType = ""
+		} else {
+			fileDiffs[i].CurrentFileSize = fmt.Sprintf("%.2f", float64(currentFileInfo.Size())/1024)
+			fileDiffs[i].CurrentFileType = filepath.Ext(filePath)
+		}
+		fileDiffs[i].CurrentLastModified = currentCommitDate
 	}
 
-	// set file details
-	if currentFileInfo != nil {
-		fileDetail.CurrentFileSize = fmt.Sprintf("%.2f", float64(currentFileInfo.Size())/1024)
-		fileDetail.CurrentLastModified = currentFileInfo.ModTime()
-		fileDetail.CurrentFileType = filepath.Ext(filePath)
-	}
-
-	// checkout to compare commit
+	// Checkout to the compare commit once
 	if err := checkoutCommit(compareCommit); err != nil {
-		return fileDetail, err
+		return err
 	}
 
-	// get file details at compare commit
-	compareFileInfo, err := os.Stat(filePath)
-	if err != nil {
-		log.Printf("Skipping file info at compare commit: %v\n", err)
-		fileDetail.CompareFileSize = "-"
-		fileDetail.CompareLastModified = fileDetail.CurrentLastModified
-		fileDetail.CompareFileType = fileDetail.CurrentFileType
+	// Loop over fileDiffs to get file info at the compare commit
+	for i := range fileDiffs {
+		filePath := fileDiffs[i].FilePath
+
+		compareFileInfo, err := os.Stat(filePath)
+		if err != nil {
+			log.Printf("Skipping file info at compare commit for %s: %v\n", filePath, err)
+			fileDiffs[i].CompareFileSize = "-"
+			fileDiffs[i].CompareFileType = ""
+		} else {
+			fileDiffs[i].CompareFileSize = fmt.Sprintf("%.2f", float64(compareFileInfo.Size())/1024)
+			fileDiffs[i].CompareFileType = filepath.Ext(filePath)
+		}
+		fileDiffs[i].CompareLastModified = compareCommitDate
 	}
 
-	// set file details
-	if compareFileInfo != nil {
-		fileDetail.CompareFileSize = fmt.Sprintf("%.2f", float64(compareFileInfo.Size())/1024)
-		fileDetail.CompareLastModified = compareFileInfo.ModTime()
-		fileDetail.CompareFileType = filepath.Ext(filePath)
-	}
-
-	return fileDetail, nil
+	return nil
 }
 
 func checkoutCommit(commit string) error {
 	cmd := exec.Command("git", "checkout", commit)
 	cmd.Stderr = os.Stdout
 	return cmd.Run()
+}
+
+func getCommitDate(commit string) (time.Time, error) {
+	cmd := exec.Command("git", "show", "-s", "--format=%ci", commit)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		return time.Time{}, err
+	}
+	dateStr := strings.TrimSpace(out.String())
+	// Parse the date string into time.Time
+	commitDate, err := time.Parse("2006-01-02 15:04:05 -0700", dateStr)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return commitDate, nil
 }
 
 func writeToCSV(fileDiffs []FileDiff, currentCommit, compareCommit string) error {
