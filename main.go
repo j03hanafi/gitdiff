@@ -28,6 +28,7 @@ func main() {
 	// Define command line flag
 	compareCommit := flag.String("from", "", "commit hash to compare with")
 	currentCommit := flag.String("to", "", "latest commit hash")
+	remark := flag.String("remark", "", "latest commit hash")
 	flag.Parse()
 
 	// Validate flags
@@ -54,7 +55,7 @@ func main() {
 	}
 
 	// Write to csv
-	err = writeToCSV(fileDiffs, *currentCommit, *compareCommit)
+	err = writeToCSV(fileDiffs, *currentCommit, *compareCommit, *remark)
 	if err != nil {
 		log.Fatalf("Error writing to csv: %v\n", err)
 	}
@@ -119,7 +120,7 @@ func getFileDetails(fileDiffs []FileDiff, currentCommit, compareCommit string) e
 		if err != nil {
 			log.Printf("Skipping file info at compare commit for %s: %v\n", filePath, err)
 			fileDiffs[i].CompareFileSize = "-"
-			fileDiffs[i].CompareFileType = ""
+			fileDiffs[i].CompareFileType = fileDiffs[i].CurrentFileType
 		} else {
 			fileDiffs[i].CompareFileSize = fmt.Sprintf("%.2f", float64(compareFileInfo.Size())/1024)
 			fileDiffs[i].CompareFileType = filepath.Ext(filePath)
@@ -153,7 +154,7 @@ func getCommitDate(commit string) (time.Time, error) {
 	return commitDate, nil
 }
 
-func writeToCSV(fileDiffs []FileDiff, currentCommit, compareCommit string) error {
+func writeToCSV(fileDiffs []FileDiff, currentCommit, compareCommit, remark string) error {
 	if len(currentCommit) > 5 {
 		currentCommit = currentCommit[:5]
 	}
@@ -175,12 +176,12 @@ func writeToCSV(fileDiffs []FileDiff, currentCommit, compareCommit string) error
 	defer writer.Flush()
 
 	// Write header
-	err = writer.Write([]string{"", "from", compareCommit, "", "", "to", currentCommit})
+	err = writer.Write([]string{"", "from", compareCommit, "", "", "", "to", currentCommit})
 	if err != nil {
 		return err
 	}
 
-	err = writer.Write([]string{"No", "File Name", "File Type", "Date Modified", "File Size (KB)", "File Name", "File Type", "Date Modified", "File Size (KB)", "Remarks"})
+	err = writer.Write([]string{"No", "File Name", "File Type", "Date Modified", "File Size (KB)", "No", "File Name", "File Type", "Date Modified", "File Size (KB)", "Remark"})
 	if err != nil {
 		return err
 	}
@@ -193,11 +194,12 @@ func writeToCSV(fileDiffs []FileDiff, currentCommit, compareCommit string) error
 			diff.CompareFileType,
 			diff.CompareLastModified.Format("02 Jan 2006"),
 			diff.CompareFileSize,
+			strconv.Itoa(i + 1),
 			diff.FilePath,
 			diff.CurrentFileType,
 			diff.CurrentLastModified.Format("02 Jan 2006"),
 			diff.CurrentFileSize,
-			"Backend",
+			remark,
 		})
 		if err != nil {
 			return err
