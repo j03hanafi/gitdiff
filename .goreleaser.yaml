@@ -22,9 +22,20 @@ builds:
       - linux
       - windows
       - darwin
+    flags:
+      - -trimpath
+      - -installsuffix cgo
+      - -a
+    tags:
+      - osusergo
+      - netgo
+    gcflags:
+      - all=-m=0 -l=2 -dwarf=false
+    ldflags:
+      - s -w -buildid=
 
 archives:
-  - format: tar.gz
+  - formats: [tar.gz]
     # this name template makes the OS and Arch compatible with the results of `uname`.
     name_template: >-
       {{ .ProjectName }}_
@@ -36,7 +47,7 @@ archives:
     # use zip for windows archives
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [zip]
 
 changelog:
   sort: asc
@@ -44,3 +55,10 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
+
+release:
+  footer: >-
+
+    ---
+
+    Released by [GoReleaser](https://github.com/goreleaser/goreleaser).
