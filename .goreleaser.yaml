@@ -24,7 +24,7 @@ builds:
       - darwin
     flags:
       - -trimpath
-      - -installsuffix cgo
+      - -installsuffix=cgo
       - -a
     tags:
       - osusergo
